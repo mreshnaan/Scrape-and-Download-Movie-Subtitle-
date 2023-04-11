@@ -1,0 +1,17 @@
+{
+  "name": "scrape",
+  "version": "1.0.0",
+  "description": "",
+  "main": "scrapper.js",
+  "dependencies": {
+    "adm-zip": "^0.5.10",
+    "csv-writer": "^1.6.0",
+    "path": "^0.12.7",
+    "puppeteer": "^19.8.5"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC"
+}
