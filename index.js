@@ -230,7 +230,6 @@ async function getMoviesList(page, pageUrl, startIndex) {
     if (movieIndex > MAX_MOVIES) {
       break;
     }
-
     // Extract the name of the movie
     const movieName = await movie.$eval(
       "h3.media-heading",
