@@ -83,7 +83,7 @@ out
 # Nuxt.js build / generate output
 .nuxt
 dist
-subtitles
+subtitles/
 
 # Gatsby files
 .cache/
@@ -116,5 +116,5 @@ subtitles
 .yarn/install-state.gz
 .pnp.*
 
-
+# file type
 .csv
