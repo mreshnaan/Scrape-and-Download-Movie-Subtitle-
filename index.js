@@ -11,6 +11,7 @@ const BASE_URL = "https://yts-subs.com";
 const csvWriter = createCsvWriter({
   path: "movies.csv",
   header: [
+    { id: "id", title: "ID" },
     { id: "name", title: "Name" },
     { id: "link", title: "Link" },
     { id: "subtitleLink", title: "Subtitle Link" },
@@ -225,7 +226,7 @@ async function getMoviesList(page, pageUrl, startIndex) {
   const movies = [];
 
   // Loop through each movie in the list
-  for (let i = 1; i <= MAX_MOVIES && movieIndex <= MAX_MOVIES; i++) {
+  for (let i = movieIndex; i <= MAX_MOVIES; i++) {
     const movie = movieList[i];
 
     // Extract the name of the movie
@@ -244,12 +245,13 @@ async function getMoviesList(page, pageUrl, startIndex) {
       // Start the download process for the subtitle and get the download data
       const downloadData = await startDownload(subtitleLink, page);
       if (downloadData) {
-        console.log(`Movie ${movieIndex}:`);
+        console.log(`Movie ${i}:`);
         console.log(`Name: ${movieName}`);
         console.log(`Link: ${movieLink}`);
         console.log(`Subtitle Link: ${subtitleLink}\n`);
         //push the data to the movies array
         movies.push({
+          id: i,
           name: movieName,
           link: movieLink,
           subtitleLink,
@@ -260,9 +262,6 @@ async function getMoviesList(page, pageUrl, startIndex) {
               ""
             ), // remove each timestamp and <i> element,
         });
-
-        //increment the moves index by 1
-        movieIndex++;
       }
     }
   }
