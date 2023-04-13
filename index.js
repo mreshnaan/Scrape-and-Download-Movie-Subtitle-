@@ -4,7 +4,7 @@ const fs = require("fs");
 const AdmZip = require("adm-zip");
 const createCsvWriter = require("csv-writer").createObjectCsvWriter;
 
-const MAX_MOVIES = 50;
+const MAX_MOVIES = 10;
 const BASE_URL = "https://yts-subs.com";
 
 // create the CSV writer object for writing movie data to a CSV file
@@ -225,11 +225,9 @@ async function getMoviesList(page, pageUrl, startIndex) {
   const movies = [];
 
   // Loop through each movie in the list
-  for (const movie of movieList) {
-    // Break out of the loop if we have already retrieved `MAX_MOVIES` number of movies
-    if (movieIndex > MAX_MOVIES) {
-      break;
-    }
+  for (let i = 1; i <= MAX_MOVIES && movieIndex <= MAX_MOVIES; i++) {
+    const movie = movieList[i];
+
     // Extract the name of the movie
     const movieName = await movie.$eval(
       "h3.media-heading",
@@ -245,20 +243,27 @@ async function getMoviesList(page, pageUrl, startIndex) {
     if (subtitleLink !== null) {
       // Start the download process for the subtitle and get the download data
       const downloadData = await startDownload(subtitleLink, page);
+      if (downloadData) {
+        console.log(`Movie ${movieIndex}:`);
+        console.log(`Name: ${movieName}`);
+        console.log(`Link: ${movieLink}`);
+        console.log(`Subtitle Link: ${subtitleLink}\n`);
+        //push the data to the movies array
+        movies.push({
+          name: movieName,
+          link: movieLink,
+          subtitleLink,
+          subtitle: downloadData
+            .replace(/[\n\r]+/g, " ") // Replace newlines and carriage returns with spaces
+            .replace(
+              /\d+\s\d+:\d+:\d+,\d+\s-->\s\d+:\d+:\d+,\d+\s|\s?<i>|<\/i>\s?/g,
+              ""
+            ), // remove each timestamp and <i> element,
+        });
 
-      console.log(`Movie ${movieIndex}:`);
-      console.log(`Name: ${movieName}`);
-      console.log(`Link: ${movieLink}`);
-      console.log(`Subtitle Link: ${subtitleLink}\n`);
-      //push the data to the movies array
-      movies.push({
-        name: movieName,
-        link: movieLink,
-        subtitleLink,
-        subtitle: downloadData,
-      });
-      //increment the moves index by 1
-      movieIndex++;
+        //increment the moves index by 1
+        movieIndex++;
+      }
     }
   }
   // Return the list of movies
