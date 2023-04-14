@@ -269,10 +269,15 @@ async function getMoviesList(page, pageUrl, startIndex) {
       console.log(`Subtitle Link: ${subtitleLink}\n`);
       //push the data to the movies array
       movies.push({
+        id: movieIndex,
         name: movieName,
         link: movieLink,
         subtitleLink,
-        subtitle: downloadData,
+        subtitle: downloadData .replace(/[\n\r]+/g, " ") // Replace newlines and carriage returns with spaces
+        .replace(
+          /\d+\s\d+:\d+:\d+,\d+\s-->\s\d+:\d+:\d+,\d+\s|\s?<i>|<\/i>\s?/g,
+          ""
+        ), // remove each timestamp and <i> element,
       });
       //increment the moves index by 1
       movieIndex++;
