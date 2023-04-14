@@ -4,7 +4,7 @@ const fs = require("fs");
 const AdmZip = require("adm-zip");
 const createCsvWriter = require("csv-writer").createObjectCsvWriter;
 
-const MAX_MOVIES = 10;
+const MAX_MOVIES = 1;
 const BASE_URL = "https://yts-subs.com";
 
 // create the CSV writer object for writing movie data to a CSV file
@@ -261,26 +261,29 @@ async function getMoviesList(page, pageUrl, startIndex) {
     // If we have a valid subtitle link, add the movie details to the `movies` array and increment the `movieIndex` counter
     if (subtitleLink !== null) {
       // Start the download process for the subtitle and get the download data
-      const downloadData = await startDownload(subtitleLink, page);
 
-      console.log(`Movie ${movieIndex}:`);
-      console.log(`Name: ${movieName}`);
-      console.log(`Link: ${movieLink}`);
-      console.log(`Subtitle Link: ${subtitleLink}\n`);
-      //push the data to the movies array
-      movies.push({
-        id: movieIndex,
-        name: movieName,
-        link: movieLink,
-        subtitleLink,
-        subtitle: downloadData .replace(/[\n\r]+/g, " ") // Replace newlines and carriage returns with spaces
-        .replace(
-          /\d+\s\d+:\d+:\d+,\d+\s-->\s\d+:\d+:\d+,\d+\s|\s?<i>|<\/i>\s?/g,
-          ""
-        ), // remove each timestamp and <i> element,
-      });
-      //increment the moves index by 1
-      movieIndex++;
+      const downloadData = await startDownload(subtitleLink, page);
+      if (downloadData) {
+        console.log(`Movie ${movieIndex}:`);
+        console.log(`Name: ${movieName}`);
+        console.log(`Link: ${movieLink}`);
+        console.log(`Subtitle Link: ${subtitleLink}\n`);
+        //push the data to the movies array
+        movies.push({
+          id: movieIndex,
+          name: movieName,
+          link: movieLink,
+          subtitleLink,
+          subtitle: downloadData
+            .replace(/[\n\r]+/g, " ") // Replace newlines and carriage returns with spaces
+            .replace(
+              /\d+\s\d+:\d+:\d+,\d+\s-->\s\d+:\d+:\d+,\d+\s|\s?<i>|<\/i>\s?/g,
+              ""
+            ), // remove each timestamp and <i> element,
+        });
+        //increment the moves index by 1
+        movieIndex++;
+      }
     }
   }
   // Return the list of movies
