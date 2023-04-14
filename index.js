@@ -225,9 +225,21 @@ async function getMoviesList(page, pageUrl, startIndex) {
   const movieList = await page.$$("ul.media-list > li.media");
   const movies = [];
 
+  // Check that the `movieList` array is not empty
+  if (movieList.length === 0) {
+    console.log("No movies found on this page.");
+    return null;
+  }
+
   // Loop through each movie in the list
-  for (let i = movieIndex; i <= MAX_MOVIES; i++) {
+  for (let i = 0; i <= movieList.length && movieIndex <= MAX_MOVIES; i++) {
     const movie = movieList[i];
+
+    // Check that the `movie` element is not undefined
+    if (!movie) {
+      console.log(`Movie ${i} is undefined.`);
+      continue;
+    }
 
     // Extract the name of the movie
     const movieName = await movie.$eval(
@@ -237,6 +249,12 @@ async function getMoviesList(page, pageUrl, startIndex) {
     // Extract the link to the movie
     const movieLink = await movie.$eval("a[itemprop=url]", (el) => el.href);
 
+    // Check that the `movieLink` variable is not empty
+    if (!movieLink) {
+      console.log(`Movie ${i} link is empty.`);
+      continue;
+    }
+
     // Open a new page and navigate to the movie link to get the English subtitle link
     const subtitleLink = await getEnglishSubtitleLink(page, movieLink);
 
@@ -244,25 +262,20 @@ async function getMoviesList(page, pageUrl, startIndex) {
     if (subtitleLink !== null) {
       // Start the download process for the subtitle and get the download data
       const downloadData = await startDownload(subtitleLink, page);
-      if (downloadData) {
-        console.log(`Movie ${i}:`);
-        console.log(`Name: ${movieName}`);
-        console.log(`Link: ${movieLink}`);
-        console.log(`Subtitle Link: ${subtitleLink}\n`);
-        //push the data to the movies array
-        movies.push({
-          id: i,
-          name: movieName,
-          link: movieLink,
-          subtitleLink,
-          subtitle: downloadData
-            .replace(/[\n\r]+/g, " ") // Replace newlines and carriage returns with spaces
-            .replace(
-              /\d+\s\d+:\d+:\d+,\d+\s-->\s\d+:\d+:\d+,\d+\s|\s?<i>|<\/i>\s?/g,
-              ""
-            ), // remove each timestamp and <i> element,
-        });
-      }
+
+      console.log(`Movie ${movieIndex}:`);
+      console.log(`Name: ${movieName}`);
+      console.log(`Link: ${movieLink}`);
+      console.log(`Subtitle Link: ${subtitleLink}\n`);
+      //push the data to the movies array
+      movies.push({
+        name: movieName,
+        link: movieLink,
+        subtitleLink,
+        subtitle: downloadData,
+      });
+      //increment the moves index by 1
+      movieIndex++;
     }
   }
   // Return the list of movies
