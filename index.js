@@ -4,18 +4,16 @@ const fs = require("fs");
 const AdmZip = require("adm-zip");
 const createCsvWriter = require("csv-writer").createObjectCsvWriter;
 
-const MAX_MOVIES = 1;
+const MAX_MOVIES = 2;
 const BASE_URL = "https://yts-subs.com";
 
 // create the CSV writer object for writing movie data to a CSV file
 const csvWriter = createCsvWriter({
   path: "movies.csv",
   header: [
-    { id: "id", title: "ID" },
     { id: "name", title: "Name" },
-    { id: "link", title: "Link" },
-    { id: "subtitleLink", title: "Subtitle Link" },
     { id: "subtitle", title: "Subtitle Data" },
+    { id: "part", title: "Subtitle Part" },
   ],
 });
 /**
@@ -204,6 +202,7 @@ async function extractSubtitles(filePath, subtitlesDir) {
 
 /**
  * Retrieves a list of movies from a given page URL, starting from a specified index.
+ * Break the subtitles into parts for their respective movies.
  *
  * @param {Object} page - The Puppeteer page object.
  * @param {string} pageUrl - The URL of the page to scrape for movie listings.
@@ -211,83 +210,95 @@ async function extractSubtitles(filePath, subtitlesDir) {
  * @return {Array} - An array of movie objects containing movie details.
  */
 async function getMoviesList(page, pageUrl, startIndex) {
-  // Initialize the movie index with the `startIndex` value
-  let movieIndex = startIndex;
+  let movieIndex = startIndex; // Set the starting index for the movies
+  await page.goto(pageUrl); // Navigate to the given URL using the Puppeteer page object
 
-  // Waits for the page to navigate to `pageUrl`
-  await page.goto(pageUrl);
+  const movieList = await page.$$("ul.media-list > li.media"); // Select all the movies on the page using a CSS selector
+  const movies = []; // Initialize an empty array to store the movie data
 
-  // Extract the current page number from the `pageUrl`
-  const currentPageNumber = parseInt(pageUrl.match(/page=(\d+)/)[1]); // Extract the current page number
-  console.log(`Current Page: ${currentPageNumber}`);
-
-  // Initialize an empty array to store the movie details
-  const movieList = await page.$$("ul.media-list > li.media");
-  const movies = [];
-
-  // Check that the `movieList` array is not empty
+  // If no movies were found on the page
   if (movieList.length === 0) {
-    console.log("No movies found on this page.");
-    return null;
+    console.log("No movies found on this page."); // Print a message to the console
+    return null; // Return null
   }
+  // Loop through each movie on the page
+  for (let i = 0; i < movieList.length && movieIndex <= MAX_MOVIES; i++) {
+    const movie = movieList[i]; // Get the current movie element
 
-  // Loop through each movie in the list
-  for (let i = 0; i <= movieList.length && movieIndex <= MAX_MOVIES; i++) {
-    const movie = movieList[i];
+    console.log(`Processing movie ${movieIndex} of ${MAX_MOVIES}`);
 
-    // Check that the `movie` element is not undefined
+    // If the movie element is undefined
     if (!movie) {
-      console.log(`Movie ${i} is undefined.`);
-      continue;
+      console.log(`Movie ${i} is undefined.`); // Print a message to the console
+      continue; // Skip to the next movie
     }
 
-    // Extract the name of the movie
+    // Get the name of the movie by evaluating the given selector in the context of the current movie element
     const movieName = await movie.$eval(
       "h3.media-heading",
       (el) => el.textContent
     );
-    // Extract the link to the movie
+    // If the movie link is empty
+    if (!movieName) {
+      console.log(`Movie ${i} link is empty.`); // Print a message to the console
+      continue; // Skip to the next movie
+    }
+
+    // Get the link to the movie by evaluating the given selector in the context of the current movie element
     const movieLink = await movie.$eval("a[itemprop=url]", (el) => el.href);
 
-    // Check that the `movieLink` variable is not empty
+    // If the movie link is empty
     if (!movieLink) {
-      console.log(`Movie ${i} link is empty.`);
-      continue;
+      console.log(`Movie ${i} link is empty.`); // Print a message to the console
+      continue; // Skip to the next movie
     }
 
-    // Open a new page and navigate to the movie link to get the English subtitle link
+    // Get the link to the English subtitle for the current movie using the provided function
     const subtitleLink = await getEnglishSubtitleLink(page, movieLink);
 
-    // If we have a valid subtitle link, add the movie details to the `movies` array and increment the `movieIndex` counter
-    if (subtitleLink !== null) {
-      // Start the download process for the subtitle and get the download data
-
-      const downloadData = await startDownload(subtitleLink, page);
-      if (downloadData) {
-        console.log(`Movie ${movieIndex}:`);
-        console.log(`Name: ${movieName}`);
-        console.log(`Link: ${movieLink}`);
-        console.log(`Subtitle Link: ${subtitleLink}\n`);
-        //push the data to the movies array
-        movies.push({
-          id: movieIndex,
-          name: movieName,
-          link: movieLink,
-          subtitleLink,
-          subtitle: downloadData
-            .replace(/[\n\r]+/g, " ") // Replace newlines and carriage returns with spaces
-            .replace(
-              /\d+\s\d+:\d+:\d+,\d+\s-->\s\d+:\d+:\d+,\d+\s|\s?<i>|<\/i>\s?/g,
-              ""
-            ), // remove each timestamp and <i> element,
-        });
-        //increment the moves index by 1
-        movieIndex++;
-      }
+    // If the subtitle link is empty
+    if (!subtitleLink) {
+      console.log(`Subtitle ${i} link is empty.`); // Print a message to the console
+      continue; // Skip to the next movie
     }
+    // Download the subtitle data using the provided function
+    const downloadData = await startDownload(subtitleLink, page);
+
+    // If the subtitle download data is empty
+    if (!downloadData) {
+      console.log(`Download ${i} data is empty.`); // Print a message to the console
+      continue; // Skip to the next movie
+    }
+
+    console.log(`Movie ${movieIndex}:`);
+    console.log(`Name: ${movieName}`);
+    console.log(`Link: ${movieLink}`);
+    console.log(`Subtitle Link: ${subtitleLink}\n`);
+
+    // This code takes a string of subtitle data and processes it into an array of chunks,
+    // each containing up to 102 characters of text, with no timestamps or <i> tags.
+    const subtitleChunks = downloadData
+      .replace(/[\n\r]+/g, " ") // Replace newlines and carriage returns with spaces
+      .replace(
+        /\d+\s\d+:\d+:\d+,\d+\s-->\s\d+:\d+:\d+,\d+\s|\s?<i>|<\/i>\s?/g,
+        ""
+      ) // remove each timestamp and <i> element,;
+      .match(/.{1,102}/g); // Split the resulting text into an array of chunks, each with up to 102 characters
+
+    // create a new array by map
+    // Create an array of objects representing each chunk of the subtitle
+    const movieSubtitles = subtitleChunks.map((chunk, index) => ({
+      name: movieName,
+      subtitle: chunk.trim(),
+      part: `part ${index + 1}`,
+    }));
+    // push the collected data to movies array
+    movies.push(...movieSubtitles);
+    //increment the movie index by 1
+    movieIndex++;
   }
-  // Return the list of movies
-  return movies;
+
+  return movies; // return the movies array
 }
 
 /**
@@ -312,6 +323,8 @@ async function scrapeMovies() {
   for (let i = 1; movieCount <= MAX_MOVIES; i++) {
     // Construct the URL for the current page of movies
     const pageUrl = `${BASE_URL}/browse?page=${i}`;
+    const currentPageNumber = parseInt(pageUrl.match(/page=(\d+)/)[1]); // Extract the current page number from the URL using a regular expression
+    console.log(`Current Page: ${currentPageNumber}`); // Print the current page number to the console
 
     // Call the `getMoviesList` function to get the list of movies on the current page
     const moviesList = await getMoviesList(page, pageUrl, startIndex);
